@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/_SolutionFiles/">
+    <File Path=".gitignore" />
+    <File Path="cleanup.cmd" />
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="TradingSystem.Core/TradingSystem.Core.csproj" />
+  <Project Path="TradingSystem.Emulator/TradingSystem.Emulator.csproj" />
+  <Project Path="TradingSystem.Host/TradingSystem.Host.csproj" />
+  <Project Path="TradingSystem.Infrastructure/TradingSystem.Infrastructure.csproj" />
+  <Project Path="TradingSystem.Tests/TradingSystem.Tests.csproj" />
+</Solution>

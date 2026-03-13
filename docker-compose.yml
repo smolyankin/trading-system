@@ -1,0 +1,115 @@
+services:
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    container_name: tradingsystem-db
+    environment:
+      POSTGRES_DB: TradingSystem
+      POSTGRES_USER: trading_user
+      POSTGRES_PASSWORD: trading_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trading_user -d TradingSystem"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tradingsystem-network
+
+  # Emitter 1 - Format 1: {"symbol", "price", "quantity", "time"}
+  emitter1:
+    build:
+      context: ./TradingSystem.Emulator
+      dockerfile: Dockerfile
+    container_name: tradingsystem-emitter1
+    environment:
+      EMITTER_FORMAT: "1"
+      PORT: "8081"
+      TICKS_PER_SECOND: "100"
+      ASPNETCORE_URLS: http://+:8081
+    ports:
+      - "8091:8081"
+    networks:
+      - tradingsystem-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Emitter 2 - Format 2: {"ticker", "lastPrice", "volume", "timestamp"}
+  emitter2:
+    build:
+      context: ./TradingSystem.Emulator
+      dockerfile: Dockerfile
+    container_name: tradingsystem-emitter2
+    environment:
+      EMITTER_FORMAT: "2"
+      PORT: "8082"
+      TICKS_PER_SECOND: "100"
+      ASPNETCORE_URLS: http://+:8082
+    ports:
+      - "8092:8082"
+    networks:
+      - tradingsystem-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Emitter 3 - Format 3: {"s", "p", "v", "t"}
+  emitter3:
+    build:
+      context: ./TradingSystem.Emulator
+      dockerfile: Dockerfile
+    container_name: tradingsystem-emitter3
+    environment:
+      EMITTER_FORMAT: "3"
+      PORT: "8083"
+      TICKS_PER_SECOND: "100"
+      ASPNETCORE_URLS: http://+:8083
+    ports:
+      - "8093:8083"
+    networks:
+      - tradingsystem-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Aggregator - Main application
+  aggregator:
+    build:
+      context: .
+      dockerfile: TradingSystem.Host/Dockerfile
+    container_name: tradingsystem-aggregator
+    environment:
+      # Database connection string (using service name as hostname)
+      # Optimizations: larger pool, no reset on close, timeout settings for high throughput
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=TradingSystem;Username=trading_user;Password=trading_pass;Maximum Pool Size=100;No Reset On Close=true;Timeout=30;Command Timeout=30"
+      # Emitter URLs (using service names as hostnames for inter-container communication)
+      Emitters__Emitter1__Url: "ws://emitter1:8081"
+      Emitters__Emitter2__Url: "ws://emitter2:8082"
+      Emitters__Emitter3__Url: "ws://emitter3:8083"
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: "Production"
+    ports:
+      - "8090:8080"
+    networks:
+      - tradingsystem-network
+    depends_on:
+      db:
+        condition: service_healthy
+      emitter1:
+        condition: service_started
+      emitter2:
+        condition: service_started
+      emitter3:
+        condition: service_started
+
+networks:
+  tradingsystem-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
